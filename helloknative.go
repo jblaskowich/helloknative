@@ -1,21 +1,24 @@
-# Start from golang:alpine with the latest version of Go installed
-# and use it as a build environment
-FROM golang:alpine AS builder
+package main
 
-WORKDIR /go/src/github.com/jblaskowich/helloknative
-# Copy the local code to the container
-ADD . .
+import (
+	"fmt"
+	"log"
+	"net/http"
+	"os"
+)
 
-# build du code source
-RUN CGO_ENABLED=0 GOOS=linux go build -v -o helloknative
+func handler(w http.ResponseWriter, r *http.Request) {
+	target := os.Getenv("TARGET")
+	if target == "" {
+		target = "Knative"
+	}
+	fmt.Fprintf(w, "Hello %s!\n", target)
+}
 
-# Transfert the builded binary to alpine
-# in order to have the smallest footprint
-FROM scratch
-COPY --from=builder github.com/jblaskowich/helloknative/helloknative .
-
-# Run the helloknative command when the container starts
-ENTRYPOINT ["./helloknative"]
-
-# Document that the service listens on port 8080
-EXPOSE 8080
+func main() {
+	log.Print("Hello Knative started.")
+	http.HandleFunc("/", handler)
+	if err := http.ListenAndServe(":8080", nil); err != nil {
+		panic(err)
+	}
+}
